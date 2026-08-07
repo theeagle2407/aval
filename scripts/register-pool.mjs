@@ -4,45 +4,12 @@
 // Requires .env with CLEANVERSE_API_ID, CLEANVERSE_API_KEY, PRIVATE_KEY.
 
 import "dotenv/config";
-import crypto from "node:crypto";
 import { Wallet } from "ethers";
+import { postEncrypted, requireEnv } from "./cleanverse.mjs";
 
-const BASE_URL = "https://uatapi.cleanverse.com/api/cooperate";
 const CHAIN = "monad";
 const POOL_ADDRESS = "0x27eF8055CA2ad761FdF4Fc82646ceD1D8604CE81";
 const EXPECTED_OWNER = "0xB37b46F58cd7E384DbD051332EB0c6e110E3Ed7C";
-
-function requireEnv(name) {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required env var: ${name}`);
-  }
-  return value;
-}
-
-function aesAlgorithmForKey(key) {
-  switch (key.length) {
-    case 16:
-      return "aes-128-cbc";
-    case 24:
-      return "aes-192-cbc";
-    case 32:
-      return "aes-256-cbc";
-    default:
-      throw new Error(`CLEANVERSE_API_KEY decodes to ${key.length} bytes; expected 16, 24, or 32`);
-  }
-}
-
-function encryptBody(plaintextJson, apiKeyBase64) {
-  const key = Buffer.from(apiKeyBase64, "base64");
-  const iv = Buffer.alloc(16, 0);
-  const algorithm = aesAlgorithmForKey(key);
-
-  const cipher = crypto.createCipheriv(algorithm, key, iv);
-  const ciphertext = Buffer.concat([cipher.update(plaintextJson, "utf8"), cipher.final()]);
-
-  return ciphertext.toString("base64");
-}
 
 async function main() {
   const CLEANVERSE_API_ID = requireEnv("CLEANVERSE_API_ID");
@@ -75,53 +42,29 @@ async function main() {
     owner_signature: ownerSignature,
   };
 
-  // STEP 3 - AES-CBC encrypt, PKCS7 padding, zero IV
-  const encryptedData = encryptBody(JSON.stringify(plaintext), CLEANVERSE_API_KEY);
-  const requestBody = { data: encryptedData };
+  // STEPS 3-4 - AES-encrypt and POST
+  console.log("\nPOST /validator/register");
+  const result = await postEncrypted("/validator/register", plaintext, {
+    apiId: CLEANVERSE_API_ID,
+    apiKey: CLEANVERSE_API_KEY,
+  });
+  console.log("X-Request-ID:", result.requestId);
 
-  // STEP 4 - POST to /validator/register
-  const requestId = crypto.randomUUID();
-  const url = `${BASE_URL}/validator/register`;
-
-  console.log("\nPOST", url);
-  console.log("X-Request-ID:", requestId);
-
-  let response;
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api-id": CLEANVERSE_API_ID,
-        "X-Request-ID": requestId,
-      },
-      body: JSON.stringify(requestBody),
-    });
-  } catch (err) {
-    console.error("\nRequest failed:", err.message);
+  if (!result.ok) {
+    console.error(`\nHTTP ${result.status} ${result.statusText}`);
+    console.error("Response body:", result.rawText);
     process.exitCode = 1;
     return;
   }
 
-  const rawText = await response.text();
-
-  if (!response.ok) {
-    console.error(`\nHTTP ${response.status} ${response.statusText}`);
-    console.error("Response body:", rawText);
-    process.exitCode = 1;
-    return;
-  }
-
-  let payload;
-  try {
-    payload = JSON.parse(rawText);
-  } catch {
-    console.error("\nNon-JSON response body:", rawText);
+  if (!result.payload) {
+    console.error("\nNon-JSON response body:", result.rawText);
     process.exitCode = 1;
     return;
   }
 
   // STEP 5 - print raw response
+  const { payload } = result;
   console.log("\n==================== Cleanverse Response ====================");
   console.log("code:   ", payload.code);
   console.log("message:", payload.message);
@@ -129,8 +72,7 @@ async function main() {
   console.log("===============================================================");
 
   if (payload.code === "0000") {
-    const txHash = payload.data?.tx_hash;
-    console.log("\nRegistration submitted. tx_hash:", txHash);
+    console.log("\nRegistration submitted. tx_hash:", payload.data?.tx_hash);
   } else {
     console.error("\nRegistration failed (non-0000 code).");
     process.exitCode = 1;
