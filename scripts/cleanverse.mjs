@@ -36,12 +36,23 @@ export function encryptPayload(plaintextObj, apiKeyBase64) {
   return ciphertext.toString("base64");
 }
 
-/**
- * Encrypts `plaintextObj` and POSTs it to `${BASE_URL}${path}` with the Cleanverse
- * api-id / X-Request-ID headers. Returns { requestId, url, status, ok, statusText, rawText, payload }
- * rather than throwing on non-2xx, so callers can decide how to report failures.
- */
-export async function postEncrypted(path, plaintextObj, { apiId, apiKey }) {
+const TRANSIENT_500_RETRIES = 2;
+const TRANSIENT_500_DELAY_MS = 2000;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** True only for the sandbox's transient "0002 + [500]/System Error" wrapper, never for other 0002s (e.g. bad params) or 0001. */
+function isTransient500(payload) {
+  return (
+    payload?.code === "0002" &&
+    typeof payload?.message === "string" &&
+    (payload.message.includes("[500]") || payload.message.includes("System Error"))
+  );
+}
+
+async function postEncryptedOnce(path, plaintextObj, { apiId, apiKey }) {
   const encryptedData = encryptPayload(plaintextObj, apiKey);
   const requestId = crypto.randomUUID();
   const url = `${BASE_URL}${path}`;
@@ -73,6 +84,31 @@ export async function postEncrypted(path, plaintextObj, { apiId, apiKey }) {
     rawText,
     payload,
   };
+}
+
+/**
+ * Encrypts `plaintextObj` and POSTs it to `${BASE_URL}${path}` with the Cleanverse
+ * api-id / X-Request-ID headers. Returns { requestId, url, status, ok, statusText, rawText, payload }
+ * rather than throwing on non-2xx, so callers can decide how to report failures.
+ *
+ * Retries up to TRANSIENT_500_RETRIES times, with a fixed delay, but only when the response
+ * is the sandbox's transient "0002" + "[500]"/"System Error" wrapper - never for other 0002
+ * business errors (e.g. bad params) or 0001, which are real failures and returned as-is.
+ */
+export async function postEncrypted(path, plaintextObj, { apiId, apiKey }) {
+  let result = await postEncryptedOnce(path, plaintextObj, { apiId, apiKey });
+
+  let attempt = 0;
+  while (isTransient500(result.payload) && attempt < TRANSIENT_500_RETRIES) {
+    attempt += 1;
+    console.log(
+      `Transient sandbox error (0002/${result.payload.message}), retrying (${attempt}/${TRANSIENT_500_RETRIES}) in ${TRANSIENT_500_DELAY_MS / 1000}s...`
+    );
+    await sleep(TRANSIENT_500_DELAY_MS);
+    result = await postEncryptedOnce(path, plaintextObj, { apiId, apiKey });
+  }
+
+  return result;
 }
 
 export function requireEnv(name) {
