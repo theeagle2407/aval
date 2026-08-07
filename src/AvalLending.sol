@@ -13,6 +13,14 @@ import {IAPassComplianceValidator} from "./interfaces/IAPassComplianceValidator.
 ///         in for collateral. Credit limits are opened by the owner (the AVAL backend) once
 ///         it has read a borrower's exact tier via the A-Pass API, and grow automatically as
 ///         borrowers build a repayment track record.
+/// @dev A-Token compliance note: when `asset` is a real Cleanverse A-Token (not the
+///      MockAUSDC test stand-in), transfers carry their own transfer-time compliance hook -
+///      the token's `_update` calls `policy.canTransfer` and reverts `TransferNotAllowed`
+///      unless BOTH the sender and the recipient hold a valid A-Pass for that token. This
+///      means this pool contract's own address, not just the borrower, must hold a valid
+///      A-Pass, or `borrow`/`repay`/`fund`/`withdraw` transfers will revert. This is by
+///      design: it layers the A-Token's own compliance enforcement on top of this contract's
+///      `complianceVerify` gate, giving defense in depth rather than a redundant check.
 contract AvalLending is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
