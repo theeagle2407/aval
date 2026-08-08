@@ -4,44 +4,70 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { fadeUp, staggerContainer } from "./motion";
 import { BorrowIcon, PoolIcon, ComplianceIcon, AuditIcon } from "./icons";
+import { Skeleton } from "./Skeleton";
+import { useAvalData } from "../lib/useAvalData";
+import { formatUsd6 } from "../lib/format";
 import type { ComponentType } from "react";
 
-const CARDS: {
-  href: string;
-  label: string;
-  description: string;
-  stat?: string;
-  Icon: ComponentType<{ size?: number; className?: string }>;
-}[] = [
-  {
-    href: "/borrow",
-    label: "Borrow",
-    description: "Open a credit line against your verified identity.",
-    stat: "$500 – $10,000 · tier-based",
-    Icon: BorrowIcon,
-  },
-  {
-    href: "/pool",
-    label: "Pool",
-    description: "Treasury liquidity, utilization, active credit lines.",
-    Icon: PoolIcon,
-  },
-  {
-    href: "/compliance",
-    label: "Compliance",
-    description: "Your CVI tier, verified live against the validator.",
-    stat: "Min. tier 20 to qualify",
-    Icon: ComplianceIcon,
-  },
-  {
-    href: "/audit",
-    label: "Audit",
-    description: "Transaction history and Travel Rule reporting.",
-    Icon: AuditIcon,
-  },
-];
-
 export function Home() {
+  const { creditLine, isCompliant, poolLiquidity, isLoading } = useAvalData();
+
+  const hasActiveLine = creditLine?.active ?? false;
+  const borrowStat = isLoading ? (
+    <Skeleton className="h-3 w-24" />
+  ) : hasActiveLine ? (
+    `${formatUsd6(creditLine!.limit - creditLine!.debt)} available`
+  ) : (
+    "up to $10,000 · tier-based"
+  );
+
+  const complianceStat = isLoading ? (
+    <Skeleton className="h-3 w-16" />
+  ) : isCompliant ? (
+    "Verified"
+  ) : (
+    "Not verified"
+  );
+
+  const poolStat = isLoading ? <Skeleton className="h-3 w-20" /> : `${formatUsd6(poolLiquidity)} available`;
+
+  const cards: {
+    href: string;
+    label: string;
+    description: string;
+    stat: React.ReactNode;
+    Icon: ComponentType<{ size?: number; className?: string }>;
+  }[] = [
+    {
+      href: "/borrow",
+      label: "Borrow",
+      description: "Open a credit line against your verified identity.",
+      stat: borrowStat,
+      Icon: BorrowIcon,
+    },
+    {
+      href: "/pool",
+      label: "Pool",
+      description: "Treasury liquidity, utilization, active credit lines.",
+      stat: poolStat,
+      Icon: PoolIcon,
+    },
+    {
+      href: "/compliance",
+      label: "Compliance",
+      description: "Your CVI tier, verified live against the validator.",
+      stat: complianceStat,
+      Icon: ComplianceIcon,
+    },
+    {
+      href: "/audit",
+      label: "Audit",
+      description: "Transaction history and Travel Rule reporting.",
+      stat: undefined,
+      Icon: AuditIcon,
+    },
+  ];
+
   return (
     <main className="flex flex-1 flex-col items-center px-6 py-20">
       <motion.h1
@@ -69,7 +95,7 @@ export function Home() {
         variants={staggerContainer}
         className="mt-16 grid w-full max-w-4xl grid-cols-1 gap-5 sm:grid-cols-2"
       >
-        {CARDS.map(({ href, label, description, stat, Icon }) => (
+        {cards.map(({ href, label, description, stat, Icon }) => (
           <motion.div key={href} variants={fadeUp}>
             <Link
               href={href}

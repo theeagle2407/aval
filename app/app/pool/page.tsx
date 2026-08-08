@@ -1,10 +1,10 @@
 import { RequireWallet } from "../components/RequireWallet";
-import { PlaceholderView } from "../components/PlaceholderView";
+import { PoolView } from "../components/PoolView";
 
 export default function PoolPage() {
   return (
     <RequireWallet>
-      <PlaceholderView title="Pool" note="Wired up in step 2." />
+      <PoolView />
     </RequireWallet>
   );
 }

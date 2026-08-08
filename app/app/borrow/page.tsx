@@ -1,10 +1,10 @@
 import { RequireWallet } from "../components/RequireWallet";
-import { PlaceholderView } from "../components/PlaceholderView";
+import { BorrowView } from "../components/BorrowView";
 
 export default function BorrowPage() {
   return (
     <RequireWallet>
-      <PlaceholderView title="Borrow" note="Wired up in step 4." />
+      <BorrowView />
     </RequireWallet>
   );
 }
