@@ -1,0 +1,7 @@
+export const CONTRACTS = {
+  avalLending: "0x27eF8055CA2ad761FdF4Fc82646ceD1D8604CE81",
+  asset: "0x3E59009E7b6aD6D6a556010f6EC3f16681952499",
+  validator: "0xaC7e5179C2C7f03f209136886c172eb34F161792",
+} as const;
+
+export const ASSET_DECIMALS = 6;
