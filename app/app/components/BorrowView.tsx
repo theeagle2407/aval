@@ -5,9 +5,10 @@ import { motion } from "framer-motion";
 import { fadeUp, staggerContainer } from "./motion";
 import { Skeleton } from "./Skeleton";
 import { InlineStatus } from "./InlineStatus";
+import { AnimatedUsd } from "./AnimatedUsd";
+import { Spinner } from "./Spinner";
 import { useAvalData } from "../lib/useAvalData";
 import { useApass } from "../lib/useApass";
-import { formatUsd6 } from "../lib/format";
 import {
   useBorrowFlow,
   useGetVerifiedFlow,
@@ -65,6 +66,8 @@ export function BorrowView() {
   const canBorrow =
     isCompliant && hasActiveLine && !isFrozen && available !== undefined && available >= BORROW_AMOUNT;
   const canRepay = hasActiveLine && (creditLine?.debt ?? BigInt(0)) > BigInt(0);
+  const isWriteBusy = borrow.isBusy || repay.isBusy;
+  const isVerifyBusy = getVerified.isBusy || openCredit.isBusy;
 
   // Flash the limit when it grows from a completed repay (compounding reputation).
   const prevLimit = useRef<bigint | null>(null);
@@ -132,9 +135,11 @@ export function BorrowView() {
         <motion.div
           variants={fadeUp}
           className={`flex flex-col justify-between rounded-2xl border p-7 transition-all duration-500 ${
-            isVerifiedAndActive
-              ? "border-teal/30 bg-panel shadow-[0_0_44px_-14px_rgba(45,212,191,0.45)]"
-              : "border-white/8 bg-panel/50 opacity-70"
+            isLoading
+              ? "border-white/8 bg-panel/50"
+              : isVerifiedAndActive
+                ? "border-teal/30 bg-panel shadow-[0_0_44px_-14px_rgba(45,212,191,0.45)]"
+                : "border-white/8 bg-panel/50 opacity-70"
           }`}
         >
           <div>
@@ -168,7 +173,9 @@ export function BorrowView() {
               {isLoading ? (
                 <Skeleton className="h-6 w-40" />
               ) : hasActiveLine ? (
-                `${formatUsd6(available)} available`
+                <>
+                  <AnimatedUsd value={available} /> available
+                </>
               ) : (
                 "No credit line yet"
               )}
@@ -190,13 +197,15 @@ export function BorrowView() {
                   animate={limitGrew ? { color: "#2DD4BF" } : { color: "#8A93A6" }}
                   className="mt-2 flex justify-between text-xs"
                 >
-                  <span>{formatUsd6(creditLine!.debt)} drawn</span>
+                  <span>
+                    <AnimatedUsd value={creditLine!.debt} /> drawn
+                  </span>
                   <motion.span
                     animate={limitGrew ? { scale: [1, 1.15, 1] } : { scale: 1 }}
                     transition={{ duration: 0.6 }}
                     className={limitGrew ? "font-medium text-teal" : ""}
                   >
-                    {formatUsd6(creditLine!.limit)} limit{limitGrew ? " ↑" : ""}
+                    <AnimatedUsd value={creditLine!.limit} /> limit{limitGrew ? " ↑" : ""}
                   </motion.span>
                 </motion.div>
 
@@ -204,18 +213,20 @@ export function BorrowView() {
                   {canBorrow && (
                     <button
                       onClick={() => borrow.run(BORROW_AMOUNT)}
-                      disabled={borrow.isBusy || repay.isBusy}
-                      className="flex-1 rounded-full bg-teal px-5 py-2.5 text-sm font-medium text-navy transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_30px_-8px_rgba(45,212,191,0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isWriteBusy}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-full bg-teal px-5 py-2.5 text-sm font-medium text-navy transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_30px_-8px_rgba(45,212,191,0.55)] disabled:cursor-not-allowed disabled:opacity-60"
                     >
+                      {borrow.isBusy && <Spinner size={13} />}
                       {borrow.isBusy ? "Borrowing…" : "Borrow $500"}
                     </button>
                   )}
                   {canRepay && (
                     <button
                       onClick={() => repay.run(creditLine!.debt, allowance ?? BigInt(0))}
-                      disabled={borrow.isBusy || repay.isBusy}
-                      className="flex-1 rounded-full border border-teal/40 px-5 py-2.5 text-sm font-medium text-teal transition-all duration-300 hover:-translate-y-0.5 hover:bg-teal/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isWriteBusy}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-full border border-teal/40 px-5 py-2.5 text-sm font-medium text-teal transition-all duration-300 hover:-translate-y-0.5 hover:bg-teal/10 disabled:cursor-not-allowed disabled:opacity-60"
                     >
+                      {repay.isBusy && <Spinner size={13} />}
                       {repay.isBusy ? "Repaying…" : "Repay"}
                     </button>
                   )}
@@ -227,16 +238,11 @@ export function BorrowView() {
               <>
                 <button
                   onClick={() => (isCompliant ? openCredit.run(apass?.tier ?? 20) : getVerified.run())}
-                  disabled={getVerified.isBusy || openCredit.isBusy}
-                  className="w-full rounded-full bg-teal px-6 py-3 text-sm font-medium text-navy transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_30px_-8px_rgba(45,212,191,0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isVerifyBusy}
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-teal px-6 py-3 text-sm font-medium text-navy transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_30px_-8px_rgba(45,212,191,0.55)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {getVerified.status.state === "progress"
-                    ? getVerified.status.message
-                    : openCredit.status.state === "progress"
-                      ? openCredit.status.message
-                      : isCompliant
-                        ? "Open credit line"
-                        : "Get verified"}
+                  {isVerifyBusy && <Spinner size={13} />}
+                  {isVerifyBusy ? "Working…" : isCompliant ? "Open credit line" : "Get verified"}
                 </button>
                 <InlineStatus status={isCompliant ? openCredit.status : getVerified.status} />
               </>

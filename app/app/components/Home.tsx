@@ -5,9 +5,9 @@ import { motion } from "framer-motion";
 import { fadeUp, staggerContainer } from "./motion";
 import { BorrowIcon, PoolIcon, ComplianceIcon, AuditIcon } from "./icons";
 import { Skeleton } from "./Skeleton";
+import { AnimatedUsd } from "./AnimatedUsd";
 import { useAvalData } from "../lib/useAvalData";
 import { useApass } from "../lib/useApass";
-import { formatUsd6 } from "../lib/format";
 import type { ComponentType } from "react";
 
 export function Home() {
@@ -18,9 +18,11 @@ export function Home() {
   const borrowStat = isLoading ? (
     <Skeleton className="h-3 w-24" />
   ) : hasActiveLine ? (
-    `${formatUsd6(creditLine!.limit - creditLine!.debt)} available`
+    <>
+      <AnimatedUsd value={creditLine!.limit - creditLine!.debt} /> available
+    </>
   ) : (
-    "up to $10,000 · tier-based"
+    "up to $10,000 · verify to unlock"
   );
 
   const hasTier = apass?.tier !== null && apass?.tier !== undefined;
@@ -32,7 +34,13 @@ export function Home() {
     "Not verified"
   );
 
-  const poolStat = isLoading ? <Skeleton className="h-3 w-20" /> : `${formatUsd6(poolLiquidity)} available`;
+  const poolStat = isLoading ? (
+    <Skeleton className="h-3 w-20" />
+  ) : (
+    <>
+      <AnimatedUsd value={poolLiquidity} /> available
+    </>
+  );
 
   const cards: {
     href: string;

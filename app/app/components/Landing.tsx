@@ -7,6 +7,7 @@ import { useAccount, useConnect, type Connector } from "wagmi";
 import { NetworkBackground } from "./NetworkBackground";
 import { BrandMark } from "./BrandMark";
 import { WalletPicker } from "./WalletPicker";
+import { Spinner } from "./Spinner";
 import { fadeUp } from "./motion";
 
 function friendlyConnectError(error: unknown): string {
@@ -123,8 +124,9 @@ export function Landing() {
               <button
                 onClick={handleConnectClick}
                 disabled={isConnecting || connectors.length === 0}
-                className="group relative rounded-full bg-teal px-8 py-3.5 text-sm font-medium tracking-wide text-navy transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_40px_-6px_rgba(45,212,191,0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="group relative flex items-center gap-2 rounded-full bg-teal px-8 py-3.5 text-sm font-medium tracking-wide text-navy transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_40px_-6px_rgba(45,212,191,0.55)] disabled:cursor-not-allowed disabled:opacity-60"
               >
+                {isConnecting && <Spinner size={14} />}
                 {isConnecting ? "Connecting…" : "Connect wallet"}
               </button>
 

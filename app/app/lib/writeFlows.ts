@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { erc20Abi } from "viem";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import { CONTRACTS } from "./contracts";
@@ -8,6 +8,33 @@ import { avalLendingAbi } from "./abis";
 import { friendlyTxError } from "./errors";
 import { recordTx } from "./txLog";
 import type { FlowStatus } from "../components/InlineStatus";
+
+const SUCCESS_DISPLAY_MS = 3000;
+
+/** FlowStatus state, but a "success" automatically fades back to idle after a few seconds. */
+function useFlowStatus() {
+  const [status, setStatusRaw] = useState<FlowStatus>({ state: "idle" });
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function setStatus(next: FlowStatus) {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setStatusRaw(next);
+    if (next.state === "success") {
+      timeoutRef.current = setTimeout(() => setStatusRaw({ state: "idle" }), SUCCESS_DISPLAY_MS);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  return [status, setStatus] as const;
+}
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -23,7 +50,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 /** "Get verified": issues an A-Pass, then opens a credit line at the assigned tier. */
 export function useGetVerifiedFlow(refetchAll: () => void) {
   const { address } = useAccount();
-  const [status, setStatus] = useState<FlowStatus>({ state: "idle" });
+  const [status, setStatus] = useFlowStatus();
 
   async function run() {
     if (!address) return;
@@ -59,7 +86,7 @@ export function useGetVerifiedFlow(refetchAll: () => void) {
 /** "Open credit line" for a wallet that's already verified (skips re-issuing the A-Pass). */
 export function useOpenCreditFlow(refetchAll: () => void) {
   const { address } = useAccount();
-  const [status, setStatus] = useState<FlowStatus>({ state: "idle" });
+  const [status, setStatus] = useFlowStatus();
 
   async function run(tier: number) {
     if (!address) return;
@@ -88,7 +115,7 @@ export function useBorrowFlow(refetchAll: () => void) {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
-  const [status, setStatus] = useState<FlowStatus>({ state: "idle" });
+  const [status, setStatus] = useFlowStatus();
 
   async function run(amount: bigint) {
     if (!address || !publicClient) return;
@@ -120,7 +147,7 @@ export function useRepayFlow(refetchAll: () => void) {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
-  const [status, setStatus] = useState<FlowStatus>({ state: "idle" });
+  const [status, setStatus] = useFlowStatus();
 
   async function run(amount: bigint, currentAllowance: bigint) {
     if (!address || !publicClient) return;
@@ -161,7 +188,7 @@ export function useRepayFlow(refetchAll: () => void) {
 /** "Simulate default" / "Unfreeze": POST /api/freeze, status 2 = freeze, 1 = unfreeze. */
 export function useFreezeFlow(refetchAll: () => void) {
   const { address } = useAccount();
-  const [status, setStatus] = useState<FlowStatus>({ state: "idle" });
+  const [status, setStatus] = useFlowStatus();
 
   async function run(targetStatus: 1 | 2) {
     if (!address) return;

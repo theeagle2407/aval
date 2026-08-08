@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { Connector } from "wagmi";
+import { Spinner } from "./Spinner";
 
 export function WalletPicker({
   connectors,
@@ -41,7 +42,12 @@ export function WalletPicker({
               </span>
             )}
             <span>{connector.name}</span>
-            {isConnecting && <span className="ml-auto text-xs text-muted">Connecting…</span>}
+            {isConnecting && (
+              <span className="ml-auto flex items-center gap-1.5 text-xs text-muted">
+                <Spinner size={12} />
+                Connecting…
+              </span>
+            )}
           </button>
         );
       })}

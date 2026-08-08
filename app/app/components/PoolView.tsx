@@ -3,8 +3,8 @@
 import { motion } from "framer-motion";
 import { fadeUp, staggerContainer } from "./motion";
 import { Skeleton } from "./Skeleton";
+import { AnimatedUsd } from "./AnimatedUsd";
 import { useAvalData } from "../lib/useAvalData";
-import { formatUsd6 } from "../lib/format";
 
 function truncateAddress(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -18,11 +18,11 @@ export function PoolView() {
   const total = available + drawn;
   const utilization = total > BigInt(0) ? Number(drawn) / Number(total) : 0;
 
-  const stats = [
-    { label: "Total liquidity", value: formatUsd6(total) },
-    { label: "Available", value: formatUsd6(available) },
-    { label: "Drawn", value: formatUsd6(drawn) },
-    { label: "Utilization", value: `${(utilization * 100).toFixed(1)}%` },
+  const stats: { label: string; node: React.ReactNode }[] = [
+    { label: "Total liquidity", node: <AnimatedUsd value={total} /> },
+    { label: "Available", node: <AnimatedUsd value={available} /> },
+    { label: "Drawn", node: <AnimatedUsd value={drawn} /> },
+    { label: "Utilization", node: `${(utilization * 100).toFixed(1)}%` },
   ];
 
   return (
@@ -56,7 +56,7 @@ export function PoolView() {
         variants={staggerContainer}
         className="mt-12 grid w-full max-w-4xl grid-cols-2 gap-5 sm:grid-cols-4"
       >
-        {stats.map(({ label, value }) => (
+        {stats.map(({ label, node }) => (
           <motion.div
             key={label}
             variants={fadeUp}
@@ -66,7 +66,7 @@ export function PoolView() {
             {isLoading ? (
               <Skeleton className="mt-3 h-7 w-20" />
             ) : (
-              <p className="mt-3 font-serif text-xl text-ivory">{value}</p>
+              <p className="mt-3 font-serif text-xl text-ivory">{node}</p>
             )}
           </motion.div>
         ))}
@@ -90,10 +90,14 @@ export function PoolView() {
             <Skeleton className="h-4 w-16" />
           </div>
         ) : creditLine?.active && address ? (
-          <div className="flex items-center justify-between px-6 py-4 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-4 text-sm">
             <span className="font-mono text-ivory">{truncateAddress(address)}</span>
-            <span className="text-muted">{formatUsd6(creditLine.debt)} drawn</span>
-            <span className="text-muted">{formatUsd6(creditLine.limit)} limit</span>
+            <span className="text-muted">
+              <AnimatedUsd value={creditLine.debt} /> drawn
+            </span>
+            <span className="text-muted">
+              <AnimatedUsd value={creditLine.limit} /> limit
+            </span>
             <span className={creditLine.frozen ? "text-red" : "text-teal"}>
               {creditLine.frozen ? "Frozen" : "Active"}
             </span>

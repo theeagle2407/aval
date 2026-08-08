@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { fadeUp, staggerContainer } from "./motion";
 import { Skeleton } from "./Skeleton";
 import { InlineStatus } from "./InlineStatus";
+import { Spinner } from "./Spinner";
 import { TierBar } from "./TierBar";
 import { useAvalData } from "../lib/useAvalData";
 import { useApass } from "../lib/useApass";
@@ -31,6 +33,7 @@ export function ComplianceView() {
   }
 
   const freeze = useFreezeFlow(refetchAll);
+  const [freezeTarget, setFreezeTarget] = useState<1 | 2 | null>(null);
 
   const isLoading = isChainLoading || isApassLoading;
   const isError = isChainError || isApassError;
@@ -79,9 +82,11 @@ export function ComplianceView() {
         <motion.div
           variants={fadeUp}
           className={`flex flex-col items-center rounded-2xl border p-10 text-center transition-all duration-500 ${
-            isCompliant
-              ? "border-teal/30 bg-panel shadow-[0_0_44px_-14px_rgba(45,212,191,0.45)]"
-              : "border-white/8 bg-panel/50"
+            isLoading
+              ? "border-white/8 bg-panel/50"
+              : isCompliant
+                ? "border-teal/30 bg-panel shadow-[0_0_44px_-14px_rgba(45,212,191,0.45)]"
+                : "border-white/8 bg-panel/50"
           }`}
         >
           <ComplianceIcon size={28} className={isCompliant ? "text-teal" : "text-steel"} />
@@ -168,18 +173,26 @@ export function ComplianceView() {
             </p>
             <div className="mt-4 flex gap-3">
               <button
-                onClick={() => freeze.run(2)}
+                onClick={() => {
+                  setFreezeTarget(2);
+                  freeze.run(2);
+                }}
                 disabled={freeze.isBusy || isFrozen}
-                className="rounded-full border border-red/30 px-5 py-2.5 text-sm font-medium text-red transition-all duration-300 hover:bg-red/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center gap-2 rounded-full border border-red/30 px-5 py-2.5 text-sm font-medium text-red transition-all duration-300 hover:bg-red/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Simulate default
+                {freeze.isBusy && freezeTarget === 2 && <Spinner size={13} />}
+                {freeze.isBusy && freezeTarget === 2 ? "Simulating…" : "Simulate default"}
               </button>
               <button
-                onClick={() => freeze.run(1)}
+                onClick={() => {
+                  setFreezeTarget(1);
+                  freeze.run(1);
+                }}
                 disabled={freeze.isBusy || !isFrozen}
-                className="rounded-full border border-teal/30 px-5 py-2.5 text-sm font-medium text-teal transition-all duration-300 hover:bg-teal/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center gap-2 rounded-full border border-teal/30 px-5 py-2.5 text-sm font-medium text-teal transition-all duration-300 hover:bg-teal/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Unfreeze / restore
+                {freeze.isBusy && freezeTarget === 1 && <Spinner size={13} />}
+                {freeze.isBusy && freezeTarget === 1 ? "Restoring…" : "Unfreeze / restore"}
               </button>
             </div>
             <InlineStatus status={freeze.status} />

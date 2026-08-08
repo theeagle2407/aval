@@ -7,6 +7,7 @@ import { fadeUp, staggerContainer } from "./motion";
 import { useTxLog } from "../lib/txLog";
 import { txExplorerUrl } from "../lib/explorer";
 import { AuditIcon, ComplianceIcon, ExternalLinkIcon } from "./icons";
+import { Spinner } from "./Spinner";
 
 function truncateHash(hash: string) {
   return `${hash.slice(0, 10)}…${hash.slice(-8)}`;
@@ -58,8 +59,9 @@ function TravelRuleLookup() {
         <button
           onClick={handleLookup}
           disabled={!isValidHash || state.kind === "loading"}
-          className="shrink-0 rounded-full border border-teal/30 px-4 py-2 text-xs font-medium text-teal transition-colors hover:bg-teal/10 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex shrink-0 items-center justify-center gap-2 rounded-full border border-teal/30 px-4 py-2 text-xs font-medium text-teal transition-colors hover:bg-teal/10 disabled:cursor-not-allowed disabled:opacity-50"
         >
+          {state.kind === "loading" && <Spinner size={12} />}
           {state.kind === "loading" ? "Looking up…" : "Look up report"}
         </button>
       </div>
