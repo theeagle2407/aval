@@ -84,5 +84,3 @@ See [`DEPLOY.md`](./DEPLOY.md) for deploying the frontend to Vercel.
 ## Tech Stack
 
 Solidity · Foundry · Next.js · wagmi · viem · TypeScript · Monad
-
-Built with AI-assisted development (Claude).
