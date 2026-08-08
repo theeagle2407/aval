@@ -13,7 +13,10 @@ export const wagmiConfig = createConfig({
   chains: [monadTestnet],
   multiInjectedProviderDiscovery: true,
   transports: {
-    [monadTestnet.id]: http("https://testnet-rpc.monad.xyz"),
+    // No URL passed: viem's http() defaults to the chain's own rpcUrls.default, so this
+    // and serverChain.server.ts both derive from the single NEXT_PUBLIC_MONAD_RPC_URL-
+    // aware source in chain.ts rather than duplicating the URL here.
+    [monadTestnet.id]: http(),
   },
   ssr: true,
 });
