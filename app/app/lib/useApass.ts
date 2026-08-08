@@ -35,5 +35,6 @@ export function useApass() {
     apass: query.data,
     isLoading: Boolean(address) && query.isLoading,
     isError: query.isError,
+    refetch: query.refetch,
   };
 }

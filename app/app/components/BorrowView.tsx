@@ -1,11 +1,21 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { fadeUp, staggerContainer } from "./motion";
 import { Skeleton } from "./Skeleton";
+import { InlineStatus } from "./InlineStatus";
 import { useAvalData } from "../lib/useAvalData";
 import { useApass } from "../lib/useApass";
 import { formatUsd6 } from "../lib/format";
+import {
+  useBorrowFlow,
+  useGetVerifiedFlow,
+  useOpenCreditFlow,
+  useRepayFlow,
+} from "../lib/writeFlows";
+
+const BORROW_AMOUNT = BigInt(500_000_000); // 500e6, 6-decimal aUSDC
 
 function MeterBar({ fraction }: { fraction: number }) {
   const clamped = Math.min(Math.max(fraction, 0), 1);
@@ -22,8 +32,25 @@ function MeterBar({ fraction }: { fraction: number }) {
 }
 
 export function BorrowView() {
-  const { creditLine, isCompliant, isLoading: isChainLoading, isError } = useAvalData();
-  const { apass, isLoading: isApassLoading } = useApass();
+  const {
+    creditLine,
+    isCompliant,
+    allowance,
+    isLoading: isChainLoading,
+    isError,
+    refetch: refetchChain,
+  } = useAvalData();
+  const { apass, isLoading: isApassLoading, refetch: refetchApass } = useApass();
+
+  function refetchAll() {
+    refetchChain();
+    refetchApass();
+  }
+
+  const getVerified = useGetVerifiedFlow(refetchAll);
+  const openCredit = useOpenCreditFlow(refetchAll);
+  const borrow = useBorrowFlow(refetchAll);
+  const repay = useRepayFlow(refetchAll);
 
   const isLoading = isChainLoading || isApassLoading;
   const hasTier = apass?.tier !== null && apass?.tier !== undefined;
@@ -35,8 +62,22 @@ export function BorrowView() {
   const drawnFraction =
     creditLine && creditLine.limit > BigInt(0) ? Number(creditLine.debt) / Number(creditLine.limit) : 0;
 
-  let ctaLabel = "Get verified";
-  if (isCompliant && !hasActiveLine) ctaLabel = "Open credit line";
+  const canBorrow =
+    isCompliant && hasActiveLine && !isFrozen && available !== undefined && available >= BORROW_AMOUNT;
+  const canRepay = hasActiveLine && (creditLine?.debt ?? BigInt(0)) > BigInt(0);
+
+  // Flash the limit when it grows from a completed repay (compounding reputation).
+  const prevLimit = useRef<bigint | null>(null);
+  const [limitGrew, setLimitGrew] = useState(false);
+  useEffect(() => {
+    if (creditLine === undefined) return;
+    if (prevLimit.current !== null && creditLine.limit > prevLimit.current) {
+      setLimitGrew(true);
+      const timeout = setTimeout(() => setLimitGrew(false), 2200);
+      return () => clearTimeout(timeout);
+    }
+    prevLimit.current = creditLine.limit;
+  }, [creditLine]);
 
   return (
     <main className="flex flex-1 flex-col items-center px-6 py-16">
@@ -133,7 +174,9 @@ export function BorrowView() {
               )}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              Your verified identity is the collateral — nothing locked.
+              {isFrozen
+                ? "This line is frozen — repayment still works, borrowing is blocked."
+                : "Your verified identity is the collateral — nothing locked."}
             </p>
           </div>
 
@@ -143,18 +186,60 @@ export function BorrowView() {
             ) : hasActiveLine ? (
               <>
                 <MeterBar fraction={drawnFraction} />
-                <div className="mt-2 flex justify-between text-xs text-muted">
+                <motion.div
+                  animate={limitGrew ? { color: "#2DD4BF" } : { color: "#8A93A6" }}
+                  className="mt-2 flex justify-between text-xs"
+                >
                   <span>{formatUsd6(creditLine!.debt)} drawn</span>
-                  <span>{formatUsd6(creditLine!.limit)} limit</span>
+                  <motion.span
+                    animate={limitGrew ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+                    transition={{ duration: 0.6 }}
+                    className={limitGrew ? "font-medium text-teal" : ""}
+                  >
+                    {formatUsd6(creditLine!.limit)} limit{limitGrew ? " ↑" : ""}
+                  </motion.span>
+                </motion.div>
+
+                <div className="mt-5 flex gap-3">
+                  {canBorrow && (
+                    <button
+                      onClick={() => borrow.run(BORROW_AMOUNT)}
+                      disabled={borrow.isBusy || repay.isBusy}
+                      className="flex-1 rounded-full bg-teal px-5 py-2.5 text-sm font-medium text-navy transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_30px_-8px_rgba(45,212,191,0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {borrow.isBusy ? "Borrowing…" : "Borrow $500"}
+                    </button>
+                  )}
+                  {canRepay && (
+                    <button
+                      onClick={() => repay.run(creditLine!.debt, allowance ?? BigInt(0))}
+                      disabled={borrow.isBusy || repay.isBusy}
+                      className="flex-1 rounded-full border border-teal/40 px-5 py-2.5 text-sm font-medium text-teal transition-all duration-300 hover:-translate-y-0.5 hover:bg-teal/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {repay.isBusy ? "Repaying…" : "Repay"}
+                    </button>
+                  )}
                 </div>
+
+                <InlineStatus status={borrow.status.state !== "idle" ? borrow.status : repay.status} />
               </>
             ) : (
-              <button
-                disabled
-                className="w-full rounded-full bg-teal/20 px-6 py-3 text-sm font-medium text-teal/50 disabled:cursor-not-allowed"
-              >
-                {ctaLabel}
-              </button>
+              <>
+                <button
+                  onClick={() => (isCompliant ? openCredit.run(apass?.tier ?? 20) : getVerified.run())}
+                  disabled={getVerified.isBusy || openCredit.isBusy}
+                  className="w-full rounded-full bg-teal px-6 py-3 text-sm font-medium text-navy transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_30px_-8px_rgba(45,212,191,0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {getVerified.status.state === "progress"
+                    ? getVerified.status.message
+                    : openCredit.status.state === "progress"
+                      ? openCredit.status.message
+                      : isCompliant
+                        ? "Open credit line"
+                        : "Get verified"}
+                </button>
+                <InlineStatus status={isCompliant ? openCredit.status : getVerified.status} />
+              </>
             )}
           </div>
         </motion.div>

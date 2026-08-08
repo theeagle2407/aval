@@ -1,7 +1,17 @@
 import { NextRequest } from "next/server";
 import { isAddress } from "viem";
 import { apiError, apiOk } from "../../lib/apiResponse";
-import { cleanverseCredentials, postPlain } from "../../lib/cleanverse.server";
+import { cleanverseCredentials, friendlyCleanverseError, postPlain } from "../../lib/cleanverse.server";
+
+const EMPTY_APASS = {
+  tier: null,
+  subTier: null,
+  group: null,
+  status: null,
+  countries: [] as string[],
+  cvRecordId: null,
+  expirationTime: null,
+};
 
 /**
  * GET /api/apass?wallet=0x... - looks up the exact CVI tier/status for a wallet via
@@ -34,7 +44,12 @@ export async function GET(request: NextRequest) {
   }
 
   if (result.payload.code !== "0000") {
-    return apiError(result.payload.message ?? "Compliance lookup failed.", 502);
+    // "No record for this wallet" is a normal, expected state for an unverified wallet -
+    // not an error - so the UI can render it as "not verified" rather than a retry banner.
+    if (/apass not found/i.test(result.payload.message ?? "")) {
+      return apiOk(EMPTY_APASS);
+    }
+    return apiError(friendlyCleanverseError(result.payload.message, "Compliance lookup failed."), 502);
   }
 
   const data = result.payload.data ?? {};

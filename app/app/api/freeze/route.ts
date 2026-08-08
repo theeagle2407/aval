@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { isAddress } from "viem";
 import { apiError, apiOk } from "../../lib/apiResponse";
-import { cleanverseCredentials, postEncrypted, postPlain } from "../../lib/cleanverse.server";
+import { cleanverseCredentials, friendlyCleanverseError, postEncrypted, postPlain } from "../../lib/cleanverse.server";
 
 const BLACKLIST_REASON = "AVAL demo: simulated default / revocation";
 const VALID_STATUSES = new Set([1, 2]);
@@ -9,8 +9,7 @@ const VALID_STATUSES = new Set([1, 2]);
 /**
  * POST /api/freeze  { wallet, status, cvRecordId? } -> freezes/unfreezes an A-Pass via
  * update_status (encrypted body). status 2 = freeze, 1 = unfreeze. If cvRecordId isn't
- * supplied, looks it up via query_apass first. Not wired to a UI button yet - ready for
- * the write flows in step 4.
+ * supplied, looks it up via query_apass first.
  */
 export async function POST(request: NextRequest) {
   let body: { wallet?: string; status?: number; cvRecordId?: string };
@@ -73,7 +72,10 @@ export async function POST(request: NextRequest) {
   }
 
   if (result.payload.code !== "0000") {
-    return apiError(result.payload.message ?? "Status update failed.", 502);
+    return apiError(
+      friendlyCleanverseError(result.payload.message, "Status update failed — please try again."),
+      502
+    );
   }
 
   const data = result.payload.data ?? {};

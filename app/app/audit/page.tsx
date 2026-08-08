@@ -1,10 +1,10 @@
 import { RequireWallet } from "../components/RequireWallet";
-import { PlaceholderView } from "../components/PlaceholderView";
+import { AuditView } from "../components/AuditView";
 
 export default function AuditPage() {
   return (
     <RequireWallet>
-      <PlaceholderView title="Audit" note="Wired up in step 4." />
+      <AuditView />
     </RequireWallet>
   );
 }

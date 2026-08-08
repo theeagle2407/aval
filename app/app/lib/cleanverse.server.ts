@@ -62,13 +62,17 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** True only for the sandbox's transient "0002 + [500]/System Error" wrapper, never for other 0002s (e.g. bad params) or 0001. */
+/**
+ * True only for the sandbox's transient "0002 + system error" wrapper, never for other
+ * 0002s (e.g. bad params) or 0001. The sandbox has been observed using more than one
+ * message format for the same transient condition - e.g. "[500]System Error" from
+ * update_status, "[CV_500]CV System error" (lowercase, different bracket code) from
+ * generate_apass - so this matches loosely on "system error" and any bracketed 5xx code
+ * rather than one exact string.
+ */
 function isTransient500(payload: CleanversePayload | undefined) {
-  return (
-    payload?.code === "0002" &&
-    typeof payload?.message === "string" &&
-    (payload.message.includes("[500]") || payload.message.includes("System Error"))
-  );
+  if (payload?.code !== "0002" || typeof payload?.message !== "string") return false;
+  return /system error/i.test(payload.message) || /\[[a-z_]*5\d{2}\]/i.test(payload.message);
 }
 
 async function sendOnce(path: string, body: unknown, apiId: string): Promise<CleanverseResult> {
@@ -168,4 +172,17 @@ export function cleanverseCredentials() {
     apiId: requireEnv("CLEANVERSE_API_ID"),
     apiKey: requireEnv("CLEANVERSE_API_KEY"),
   };
+}
+
+/**
+ * Cleanverse error messages carry internal bracketed codes ("[CV_500]CV System error",
+ * "[400]Invalid idType ...") meant for their own logs, not end users. Strips the code and
+ * falls back to a calm generic message whenever what's left still reads as an internal/
+ * system failure rather than genuinely actionable feedback.
+ */
+export function friendlyCleanverseError(message: string | undefined, fallback: string): string {
+  if (!message) return fallback;
+  const stripped = message.replace(/^\[[A-Za-z0-9_]+\]\s*/, "").trim();
+  if (!stripped || /system error/i.test(stripped)) return fallback;
+  return stripped;
 }

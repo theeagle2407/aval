@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import crypto from "node:crypto";
 import { isAddress } from "viem";
 import { apiError, apiOk } from "../../lib/apiResponse";
-import { cleanverseCredentials, postEncrypted } from "../../lib/cleanverse.server";
+import { cleanverseCredentials, friendlyCleanverseError, postEncrypted } from "../../lib/cleanverse.server";
 
 const CUSTOMER_ID_CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -64,7 +64,13 @@ export async function POST(request: NextRequest) {
   }
 
   if (result.payload.code !== "0000") {
-    return apiError(result.payload.message ?? "A-Pass issuance failed.", 502);
+    return apiError(
+      friendlyCleanverseError(
+        result.payload.message,
+        "The compliance provider couldn't issue an identity credential right now — please try again shortly."
+      ),
+      502
+    );
   }
 
   const data = result.payload.data ?? {};

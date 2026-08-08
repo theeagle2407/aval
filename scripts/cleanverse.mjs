@@ -43,13 +43,17 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** True only for the sandbox's transient "0002 + [500]/System Error" wrapper, never for other 0002s (e.g. bad params) or 0001. */
+/**
+ * True only for the sandbox's transient "0002 + system error" wrapper, never for other
+ * 0002s (e.g. bad params) or 0001. The sandbox has been observed using more than one
+ * message format for the same transient condition - e.g. "[500]System Error" from
+ * update_status, "[CV_500]CV System error" (lowercase, different bracket code) from
+ * generate_apass - so this matches loosely on "system error" and any bracketed 5xx code
+ * rather than one exact string.
+ */
 function isTransient500(payload) {
-  return (
-    payload?.code === "0002" &&
-    typeof payload?.message === "string" &&
-    (payload.message.includes("[500]") || payload.message.includes("System Error"))
-  );
+  if (payload?.code !== "0002" || typeof payload?.message !== "string") return false;
+  return /system error/i.test(payload.message) || /\[[a-z_]*5\d{2}\]/i.test(payload.message);
 }
 
 async function postEncryptedOnce(path, plaintextObj, { apiId, apiKey }) {

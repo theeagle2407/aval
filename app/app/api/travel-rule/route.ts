@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { isAddress } from "viem";
 import { apiError, apiOk } from "../../lib/apiResponse";
-import { cleanverseCredentials, postPlain } from "../../lib/cleanverse.server";
+import { cleanverseCredentials, friendlyCleanverseError, postPlain } from "../../lib/cleanverse.server";
 
 /**
  * GET /api/travel-rule?txHash=0x...&wallet=0x... -> fetches a Travel Rule report download
@@ -63,7 +63,10 @@ export async function GET(request: NextRequest) {
   }
 
   if (result.payload.code !== "0000") {
-    return apiError(result.payload.message ?? "Travel Rule report lookup failed.", 502);
+    return apiError(
+      friendlyCleanverseError(result.payload.message, "Travel Rule report isn't available right now."),
+      502
+    );
   }
 
   const data = result.payload.data ?? {};

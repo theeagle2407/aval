@@ -3,9 +3,11 @@
 import { motion } from "framer-motion";
 import { fadeUp, staggerContainer } from "./motion";
 import { Skeleton } from "./Skeleton";
+import { InlineStatus } from "./InlineStatus";
 import { TierBar } from "./TierBar";
 import { useAvalData } from "../lib/useAvalData";
 import { useApass } from "../lib/useApass";
+import { useFreezeFlow } from "../lib/writeFlows";
 import { CONTRACTS } from "../lib/contracts";
 import { ComplianceIcon } from "./icons";
 
@@ -14,12 +16,26 @@ function truncateAddress(address: string) {
 }
 
 export function ComplianceView() {
-  const { isCompliant, minTier, isLoading: isChainLoading, isError: isChainError } = useAvalData();
-  const { apass, isLoading: isApassLoading, isError: isApassError } = useApass();
+  const {
+    isCompliant,
+    minTier,
+    isLoading: isChainLoading,
+    isError: isChainError,
+    refetch: refetchChain,
+  } = useAvalData();
+  const { apass, isLoading: isApassLoading, isError: isApassError, refetch: refetchApass } = useApass();
+
+  function refetchAll() {
+    refetchChain();
+    refetchApass();
+  }
+
+  const freeze = useFreezeFlow(refetchAll);
 
   const isLoading = isChainLoading || isApassLoading;
   const isError = isChainError || isApassError;
   const hasTier = apass?.tier !== null && apass?.tier !== undefined;
+  const isFrozen = apass?.status === 2;
 
   const headline = hasTier
     ? `Tier ${apass!.tier} · ${isCompliant ? "Verified" : "Not verified"}`
@@ -139,6 +155,36 @@ export function ComplianceView() {
             <p className="mt-2 text-sm text-muted">Cleanverse CCP validator, Monad testnet.</p>
           </div>
         </motion.div>
+
+        {apass?.cvRecordId && (
+          <motion.div
+            variants={fadeUp}
+            className="mt-5 rounded-2xl border border-dashed border-white/10 bg-panel/40 p-6"
+          >
+            <p className="text-[11px] uppercase tracking-wider text-steel">Demo control</p>
+            <p className="mt-2 text-sm text-muted">
+              Simulates a real-world revocation or default — freezing the A-Pass revokes
+              compliance immediately, so borrowing stops even though the credit line stays open.
+            </p>
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={() => freeze.run(2)}
+                disabled={freeze.isBusy || isFrozen}
+                className="rounded-full border border-red/30 px-5 py-2.5 text-sm font-medium text-red transition-all duration-300 hover:bg-red/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Simulate default
+              </button>
+              <button
+                onClick={() => freeze.run(1)}
+                disabled={freeze.isBusy || !isFrozen}
+                className="rounded-full border border-teal/30 px-5 py-2.5 text-sm font-medium text-teal transition-all duration-300 hover:bg-teal/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Unfreeze / restore
+              </button>
+            </div>
+            <InlineStatus status={freeze.status} />
+          </motion.div>
+        )}
       </motion.div>
     </main>
   );

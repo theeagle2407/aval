@@ -57,6 +57,12 @@ export function useAvalData() {
         functionName: "getRulesV2",
         args: [CONTRACTS.avalLending],
       },
+      {
+        address: CONTRACTS.asset,
+        abi: erc20Abi,
+        functionName: "allowance",
+        args: [queryAddress, CONTRACTS.avalLending],
+      },
     ],
     query: {
       enabled: Boolean(address),
@@ -64,8 +70,14 @@ export function useAvalData() {
     },
   });
 
-  const [creditLineResult, isCompliantResult, poolLiquidityResult, userBalanceResult, rulesResult] =
-    data ?? [];
+  const [
+    creditLineResult,
+    isCompliantResult,
+    poolLiquidityResult,
+    userBalanceResult,
+    rulesResult,
+    allowanceResult,
+  ] = data ?? [];
 
   const creditLine =
     creditLineResult?.status === "success" ? (creditLineResult.result as CreditLine) : undefined;
@@ -80,6 +92,8 @@ export function useAvalData() {
       ? (rulesResult.result as readonly { minTier: number }[])
       : undefined;
   const minTier = rules?.[0]?.minTier;
+  const allowance =
+    allowanceResult?.status === "success" ? (allowanceResult.result as bigint) : undefined;
 
   return {
     address,
@@ -88,6 +102,7 @@ export function useAvalData() {
     poolLiquidity,
     userBalance,
     minTier,
+    allowance,
     isLoading: Boolean(address) && isLoading,
     isError,
     refetch,
