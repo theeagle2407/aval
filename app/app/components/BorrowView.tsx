@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { fadeUp, staggerContainer } from "./motion";
 import { Skeleton } from "./Skeleton";
 import { useAvalData } from "../lib/useAvalData";
+import { useApass } from "../lib/useApass";
 import { formatUsd6 } from "../lib/format";
 
 function MeterBar({ fraction }: { fraction: number }) {
@@ -21,8 +22,11 @@ function MeterBar({ fraction }: { fraction: number }) {
 }
 
 export function BorrowView() {
-  const { creditLine, isCompliant, isLoading, isError } = useAvalData();
+  const { creditLine, isCompliant, isLoading: isChainLoading, isError } = useAvalData();
+  const { apass, isLoading: isApassLoading } = useApass();
 
+  const isLoading = isChainLoading || isApassLoading;
+  const hasTier = apass?.tier !== null && apass?.tier !== undefined;
   const hasActiveLine = creditLine?.active ?? false;
   const isVerifiedAndActive = Boolean(isCompliant) && hasActiveLine && !creditLine?.frozen;
   const isFrozen = hasActiveLine && Boolean(creditLine?.frozen);
@@ -113,7 +117,7 @@ export function BorrowView() {
                     transition={{ type: "spring", stiffness: 400, damping: 18 }}
                     className="rounded-full bg-teal/15 px-2.5 py-1 text-[11px] font-medium text-teal"
                   >
-                    Verified
+                    {hasTier ? `Tier ${apass!.tier} · Verified` : "Verified"}
                   </motion.span>
                 )
               )}

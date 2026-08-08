@@ -6,11 +6,13 @@ import { fadeUp, staggerContainer } from "./motion";
 import { BorrowIcon, PoolIcon, ComplianceIcon, AuditIcon } from "./icons";
 import { Skeleton } from "./Skeleton";
 import { useAvalData } from "../lib/useAvalData";
+import { useApass } from "../lib/useApass";
 import { formatUsd6 } from "../lib/format";
 import type { ComponentType } from "react";
 
 export function Home() {
   const { creditLine, isCompliant, poolLiquidity, isLoading } = useAvalData();
+  const { apass, isLoading: isApassLoading } = useApass();
 
   const hasActiveLine = creditLine?.active ?? false;
   const borrowStat = isLoading ? (
@@ -21,10 +23,11 @@ export function Home() {
     "up to $10,000 · tier-based"
   );
 
-  const complianceStat = isLoading ? (
+  const hasTier = apass?.tier !== null && apass?.tier !== undefined;
+  const complianceStat = isLoading || isApassLoading ? (
     <Skeleton className="h-3 w-16" />
   ) : isCompliant ? (
-    "Verified"
+    hasTier ? `Verified · Tier ${apass!.tier}` : "Verified"
   ) : (
     "Not verified"
   );

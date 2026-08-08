@@ -30,6 +30,16 @@ export const avalLendingAbi = [
     inputs: [{ name: "borrower", type: "address" }],
     outputs: [{ name: "", type: "bool" }],
   },
+  {
+    type: "function",
+    name: "openCreditLineFor",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "borrower", type: "address" },
+      { name: "tier", type: "uint256" },
+    ],
+    outputs: [],
+  },
 ] as const;
 
 export const validatorAbi = [

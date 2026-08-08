@@ -3,7 +3,9 @@
 import { motion } from "framer-motion";
 import { fadeUp, staggerContainer } from "./motion";
 import { Skeleton } from "./Skeleton";
+import { TierBar } from "./TierBar";
 import { useAvalData } from "../lib/useAvalData";
+import { useApass } from "../lib/useApass";
 import { CONTRACTS } from "../lib/contracts";
 import { ComplianceIcon } from "./icons";
 
@@ -12,7 +14,20 @@ function truncateAddress(address: string) {
 }
 
 export function ComplianceView() {
-  const { isCompliant, minTier, isLoading, isError } = useAvalData();
+  const { isCompliant, minTier, isLoading: isChainLoading, isError: isChainError } = useAvalData();
+  const { apass, isLoading: isApassLoading, isError: isApassError } = useApass();
+
+  const isLoading = isChainLoading || isApassLoading;
+  const isError = isChainError || isApassError;
+  const hasTier = apass?.tier !== null && apass?.tier !== undefined;
+
+  const headline = hasTier
+    ? `Tier ${apass!.tier} · ${isCompliant ? "Verified" : "Not verified"}`
+    : isCompliant
+      ? "Verified"
+      : "Not verified";
+
+  const statusLabel = apass?.status === 2 ? "Frozen" : apass?.status === 1 ? "Active" : null;
 
   return (
     <main className="flex flex-1 flex-col items-center px-6 py-16">
@@ -56,7 +71,7 @@ export function ComplianceView() {
           <ComplianceIcon size={28} className={isCompliant ? "text-teal" : "text-steel"} />
 
           {isLoading ? (
-            <Skeleton className="mt-5 h-8 w-40" />
+            <Skeleton className="mt-5 h-8 w-48" />
           ) : (
             <motion.h2
               initial={{ scale: 0.85, opacity: 0 }}
@@ -64,7 +79,7 @@ export function ComplianceView() {
               transition={{ type: "spring", stiffness: 380, damping: 20 }}
               className="mt-5 font-serif text-2xl text-ivory"
             >
-              {isCompliant ? "Verified" : "Not verified"}
+              {headline}
             </motion.h2>
           )}
 
@@ -73,12 +88,40 @@ export function ComplianceView() {
               ? "Your A-Pass meets this pool's compliance rule."
               : "No valid A-Pass found for this pool's compliance rule."}
           </p>
+
+          {(statusLabel || (apass?.countries?.length ?? 0) > 0) && !isLoading && (
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              {statusLabel && (
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                    statusLabel === "Frozen" ? "bg-red/15 text-red" : "bg-teal/15 text-teal"
+                  }`}
+                >
+                  {statusLabel}
+                </span>
+              )}
+              {apass?.countries?.map((country) => (
+                <span
+                  key={country}
+                  className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-muted"
+                >
+                  {country}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {hasTier && !isLoading && (
+            <div className="mt-8 w-full max-w-sm">
+              <TierBar tier={apass!.tier!} />
+            </div>
+          )}
         </motion.div>
 
         <motion.div variants={fadeUp} className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div className="rounded-2xl border border-white/8 bg-panel p-6">
             <p className="text-[11px] uppercase tracking-wider text-steel">Pool rule</p>
-            {isLoading ? (
+            {isChainLoading ? (
               <Skeleton className="mt-3 h-6 w-24" />
             ) : (
               <p className="mt-3 font-serif text-xl text-ivory">
